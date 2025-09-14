@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: API CRUD en ECS Fargate usando CloudFormation
+
+Resources:
+  CrudCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: CrudCluster
+
+  CrudSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow inbound traffic on port 8000
+      VpcId: !Ref DefaultVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8000
+          ToPort: 8000
+          CidrIp: 0.0.0.0/0
+
+  CrudTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: crud-task
+      Cpu: '256'
+      Memory: '512'
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: arn:aws:iam::472685703742:role/LabRole
+      ContainerDefinitions:
+        - Name: crud-container
+          Image: 472685703742.dkr.ecr.us-east-1.amazonaws.com/api-students:latest
+          PortMappings:
+            - ContainerPort: 8000
+              HostPort: 8000
+              Protocol: tcp
+
+  CrudService:
+    Type: AWS::ECS::Service
+    DependsOn: CrudCluster
+    Properties:
+      Cluster: !Ref CrudCluster
+      DesiredCount: 1
+      LaunchType: FARGATE
+      TaskDefinition: !Ref CrudTaskDefinition
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref CrudSecurityGroup
+          Subnets: !Ref DefaultSubnets
+
+# VPC y subnets por defecto (lookup)
+Parameters:
+  DefaultVPC:
+    Type: AWS::EC2::VPC::Id
+    Description: Default VPC ID
+
+  DefaultSubnets:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Default Subnet IDs
